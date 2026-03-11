@@ -1,0 +1,46 @@
+const CLIENT_ID = "675d6570232d424d9d657ea7f5656f34";
+const CLIENT_SECRET = "AhIuHCJh0XXmjEzOMRTfuzBMxgLvG67Y";
+
+function getAccessToken() {
+  const response = UrlFetchApp.fetch(
+    "https://oauth.battle.net/token",
+    {
+      method: "post",
+      payload: { grant_type: "client_credentials" },
+      headers: {
+        Authorization: "Basic " + Utilities.base64Encode(CLIENT_ID + ":" + CLIENT_SECRET)
+      }
+    }
+  );
+  return JSON.parse(response.getContentText()).access_token;
+}
+
+/**
+ * Looks up a WoW character's equipped item level.
+ * @param {string} realmSlug  e.g. "area-52"
+ * @param {string} characterName  e.g. "thrall"
+ * @param {string} region  e.g. "us" or "eu" (default: "us")
+ * @return {number} Equipped item level
+ * @customfunction
+ */
+function WOW_ILVL(realmSlug, characterName, region) {
+  region = (region || "us").toLowerCase();
+  const name = characterName.toLowerCase();
+  const realm = realmSlug.toLowerCase();
+  const token = getAccessToken();
+
+  const url = `https://${region}.api.blizzard.com/profile/wow/character/${realm}/${name}/equipment?namespace=profile-${region}&locale=en_US`;
+
+  const response = UrlFetchApp.fetch(url, {
+    headers: { Authorization: "Bearer " + token }
+  });
+
+  const data = JSON.parse(response.getContentText());
+
+  // Sum up equipped item levels
+  const items = data.equipped_items;
+  if (!items || items.length === 0) return "No items found";
+
+  const total = items.reduce((sum, item) => sum + (item.level?.value || 0), 0);
+  return Math.round(total / 16);
+}
